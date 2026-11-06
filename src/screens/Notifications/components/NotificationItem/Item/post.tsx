@@ -28,6 +28,10 @@ import {Link, WebOnlyInlineLinkText} from '#/components/Link'
 import {ContentHider} from '#/components/moderation/ContentHider'
 import {PostAlerts} from '#/components/moderation/PostAlerts'
 import {ExternalEmbed} from '#/components/Post/Embed/ExternalEmbed'
+import {
+  getScoreboardAttachment,
+  ScoreboardEmbed,
+} from '#/components/Post/Embed/Scoreboard'
 import {ShowMoreTextButton} from '#/components/Post/ShowMoreTextButton'
 import {PostControls} from '#/components/PostControls'
 import {ProfileBadges} from '#/components/ProfileBadges'
@@ -431,9 +435,19 @@ function EmbedPreview({
     return <RecordPreview embed={embed} />
   }
   if (bsky.isType(app.bsky.embed.external.view, embed)) {
+    const link = <ExternalEmbed link={embed.external} post={post} />
+    const scoreboard = getScoreboardAttachment(post.record)
     return (
       <ContentHider modui={moderation?.ui('contentMedia')}>
-        <ExternalEmbed link={embed.external} post={post} />
+        {scoreboard ? (
+          <ScoreboardEmbed
+            attachment={scoreboard}
+            link={embed.external}
+            fallback={link}
+          />
+        ) : (
+          link
+        )}
       </ContentHider>
     )
   }
