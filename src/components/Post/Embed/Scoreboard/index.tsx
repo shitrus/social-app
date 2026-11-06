@@ -91,6 +91,7 @@ export function ScoreboardEmbed({
 
   let changed: boolean
   let isSnapshot: boolean
+  let isStandings = false
   let alt: string
   let body: React.ReactNode
   if (rec.kind === 'game' && attachment.kind === 'game') {
@@ -119,6 +120,7 @@ export function ScoreboardEmbed({
         ? {...board, isSnapshot: false}
         : applyLeaderboardSnapshot(board, attachment.snapshot)
     isSnapshot = view.isSnapshot
+    isStandings = board.status === 'standings'
     alt = getLeaderboardAltText(view, attachment.highlight)
     body = <LeaderboardBody board={view} highlight={attachment.highlight} />
   } else {
@@ -131,6 +133,7 @@ export function ScoreboardEmbed({
       alt={alt}
       changed={changed}
       isSnapshot={isSnapshot}
+      isStandings={isStandings}
       onToggle={() => setShowLive(v => !v)}
       onOpen={onOpen}
       style={style}>
@@ -149,6 +152,7 @@ function CardFrame({
   alt,
   changed,
   isSnapshot,
+  isStandings,
   onToggle,
   onOpen,
   style,
@@ -158,6 +162,7 @@ function CardFrame({
   alt: string
   changed: boolean
   isSnapshot: boolean
+  isStandings: boolean
   onToggle: () => void
   onOpen?: () => void
   style?: StyleProp<ViewStyle>
@@ -211,7 +216,13 @@ function CardFrame({
           {height: FOOTER_HEIGHT},
         ]}>
         <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>
-          {isSnapshot ? l`Score when posted` : l`Live score`}
+          {isStandings
+            ? isSnapshot
+              ? l`Standings when posted`
+              : l`Current standings`
+            : isSnapshot
+              ? l`Score when posted`
+              : l`Live score`}
         </Text>
         {changed && (
           <Button
