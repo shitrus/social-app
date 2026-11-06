@@ -9,6 +9,7 @@
 
 export const GAME_COLLECTION = 'com.professorbutts.sports.game'
 export const LEADERBOARD_COLLECTION = 'com.professorbutts.sports.leaderboard'
+export const STANDINGS_COLLECTION = 'com.professorbutts.sports.standings'
 /** Post field that carries the scoreboard. */
 export const SCOREBOARD_FIELD = 'com.professorbutts.sports.scoreboard'
 /** Older name for the same field, still on posts made before the rename. */
@@ -167,6 +168,9 @@ export type Entrant = {
   state?: string
   profile?: string
   photoUrl?: string
+  points?: number
+  /** Standings: drivers in a constructor or team. */
+  members?: Entrant[]
 }
 
 /** A union member of com.professorbutts.sports.defs#progress. */
@@ -193,8 +197,29 @@ export type Leaderboard = {
   venue?: string
   startsAt: string
   endsAt?: string
-  status: GameStatus | 'suspended'
+  status: GameStatus | 'suspended' | 'standings'
   progress?: Progress
+  standings: Entrant[]
+  /** Standings: last event counted. */
+  afterEvent?: string
+  /** Standings: the next session that will change them. */
+  next?: NextSession
+  updatedAt: string
+}
+
+export type NextSession = {
+  name: string
+  startsAt?: string
+}
+
+export type Standings = {
+  sport: string
+  league: string
+  name: string
+  table?: string
+  season?: string
+  afterEvent?: string
+  next?: NextSession
   standings: Entrant[]
   updatedAt: string
 }

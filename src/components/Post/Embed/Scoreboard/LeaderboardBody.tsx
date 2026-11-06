@@ -4,9 +4,9 @@ import {useLingui} from '@lingui/react/macro'
 import {atoms as a, useTheme} from '#/alf'
 import {Text} from '#/components/Typography'
 import {
+  formatNext,
   getEntrantDetail,
   getEntrantScore,
-  getPositionLabel,
   getProgressLabel,
   isHighlighted,
   isLeaderboardLive,
@@ -56,15 +56,13 @@ export function LeaderboardBody({
         style={[{gap: ROW_GAP, height: ROW_HEIGHT * 3 + ROW_GAP * 2}]}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants">
-        {rows.map((e, i) => (
+        {rows.map((row, i) => (
           <EntrantRow
-            key={`${e.name}-${i}`}
-            entrant={e}
-            position={getPositionLabel(
-              e,
-              Math.max(board.standings.indexOf(e), i),
-            )}
-            highlighted={isHighlighted(e, highlight)}
+            key={`${row.entrant.name}-${i}`}
+            entrant={row.entrant}
+            position={row.position}
+            member={row.member}
+            highlighted={!row.member && isHighlighted(row.entrant, highlight)}
           />
         ))}
       </View>
@@ -81,6 +79,10 @@ export function LeaderboardBody({
 
 function getStatusLine(board: LeaderboardView) {
   const progress = getProgressLabel(board.progress)
+  if (board.status === 'standings') {
+    if (board.next) return `Next: ${formatNext(board.next)}`
+    return board.afterEvent ? `After ${board.afterEvent}` : undefined
+  }
   if (board.status === 'final') {
     return [formatGameDate(board.endsAt ?? board.startsAt), board.venue]
       .filter(Boolean)
@@ -95,6 +97,9 @@ function LeaderboardPill({board}: {board: LeaderboardView}) {
   const live = board.status === 'live' && !board.isSnapshot
   let label: string
   switch (board.status) {
+    case 'standings':
+      label = l`STANDINGS`
+      break
     case 'live':
       label = l`LIVE`
       break
@@ -152,10 +157,12 @@ function LeaderboardPill({board}: {board: LeaderboardView}) {
 function EntrantRow({
   entrant,
   position,
+  member,
   highlighted,
 }: {
   entrant: Entrant
   position: string
+  member: boolean
   highlighted: boolean
 }) {
   const t = useTheme()
@@ -173,15 +180,16 @@ function EntrantRow({
         a.gap_sm,
         a.rounded_sm,
         {height: ROW_HEIGHT, marginHorizontal: -4, paddingHorizontal: 4},
+        member && {paddingLeft: 24},
         highlighted && {backgroundColor: t.palette.primary_50},
       ]}>
       <Text
         style={[
           a.text_sm,
-          a.font_bold,
+          member ? [a.font_normal, t.atoms.text_contrast_medium] : a.font_bold,
           {width: 32, fontVariant: ['tabular-nums']},
         ]}>
-        {position}
+        {member && position ? `P${position}` : position}
       </Text>
       <View
         style={[

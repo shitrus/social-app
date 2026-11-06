@@ -5,6 +5,7 @@ import {
   getProgressLabel,
   hasLeaderboardChanged,
   pickRows,
+  standingsToLeaderboard,
 } from './leaderboard'
 import {type Leaderboard} from './types'
 import {getScoreboardAttachment} from './utils'
@@ -53,15 +54,55 @@ describe('leaderboard attachment', () => {
 
 describe('pickRows', () => {
   it('shows the top three', () => {
-    expect(pickRows(board.standings, []).map(e => e.name)).toEqual([
+    expect(pickRows(board.standings, []).map(r => r.entrant.name)).toEqual([
       'Player One',
       'Player Two',
       'Player Three',
     ])
   })
   it('pins a highlighted entrant below the top three', () => {
-    expect(pickRows(board.standings, ['player four']).map(e => e.name)).toEqual(
-      ['Player One', 'Player Two', 'Player Four'],
+    expect(
+      pickRows(board.standings, ['player four']).map(r => r.entrant.name),
+    ).toEqual(['Player One', 'Player Two', 'Player Four'])
+  })
+})
+
+describe('standings', () => {
+  const constructors: Leaderboard = standingsToLeaderboard({
+    sport: 'motorsport',
+    league: 'F1',
+    name: "Constructors' Championship",
+    season: '2026',
+    afterEvent: 'Mexico City GP',
+    updatedAt: '2026-11-02T00:00:00Z',
+    standings: [
+      {name: 'Mercedes', position: 1, score: '600 pts'},
+      {name: 'Ferrari', position: 2, score: '520 pts'},
+      {name: 'Red Bull', position: 3, score: '480 pts'},
+      {
+        name: 'McLaren',
+        position: 4,
+        score: '450 pts',
+        members: [
+          {name: 'Lando Norris', position: 5, score: '240 pts'},
+          {name: 'Oscar Piastri', position: 7, score: '210 pts'},
+        ],
+      },
+    ],
+  })
+  it('shows a highlighted constructor with its drivers', () => {
+    const rows = pickRows(constructors.standings, ['McLaren'])
+    expect(rows.map(r => [r.entrant.name, r.position, r.member])).toEqual([
+      ['McLaren', '4', false],
+      ['Lando Norris', '5', true],
+      ['Oscar Piastri', '7', true],
+    ])
+  })
+  it('describes standings', () => {
+    expect(
+      getLeaderboardAltText({...constructors, isSnapshot: false}, ['McLaren']),
+    ).toBe(
+      "Leaderboard. F1, 2026, 2026 Constructors' Championship. Standings after Mexico City GP. 4: McLaren, 450 pts. Driver Lando Norris, P5, 240 pts. Driver Oscar Piastri, P7, 210 pts. Current standings.",
     )
   })
 })

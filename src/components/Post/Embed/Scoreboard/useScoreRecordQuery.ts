@@ -4,12 +4,18 @@ import {useQuery} from '@tanstack/react-query'
 
 import {STALE} from '#/state/queries'
 import {createQueryKey} from '#/state/queries/util'
-import {getLeaderboardRefreshInterval, isLeaderboard} from './leaderboard'
+import {
+  getLeaderboardRefreshInterval,
+  isLeaderboard,
+  isStandings,
+  standingsToLeaderboard,
+} from './leaderboard'
 import {
   type Game,
   GAME_COLLECTION,
   type Leaderboard,
   LEADERBOARD_COLLECTION,
+  STANDINGS_COLLECTION,
 } from './types'
 import {getRefreshInterval, isGame} from './utils'
 
@@ -82,6 +88,9 @@ export function useScoreRecordQuery(gameUri: string | undefined) {
         isLeaderboard(body.value)
       ) {
         return {kind: 'leaderboard', value: body.value}
+      }
+      if (uri!.collection === STANDINGS_COLLECTION && isStandings(body.value)) {
+        return {kind: 'leaderboard', value: standingsToLeaderboard(body.value)}
       }
       throw new Error('Not a scoreboard record')
     },

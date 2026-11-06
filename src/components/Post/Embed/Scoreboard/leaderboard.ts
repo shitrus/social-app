@@ -4,6 +4,7 @@ import {
   type LeaderboardSnapshot,
   type LeaderboardView,
   type Progress,
+  type Standings,
 } from './types'
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -22,6 +23,48 @@ export function isLeaderboard(v: unknown): v is Leaderboard {
     Array.isArray(v.standings) &&
     v.standings.every(isEntrant)
   )
+}
+
+/** Season standings record, drawn on the leaderboard card. */
+export function isStandings(v: unknown): v is Standings {
+  return (
+    isObject(v) &&
+    typeof v.name === 'string' &&
+    Array.isArray(v.standings) &&
+    v.standings.every(isEntrant)
+  )
+}
+
+/** Standings shown as a leaderboard with a 'standings' status. */
+export function standingsToLeaderboard(s: Standings): Leaderboard {
+  return {
+    sport: s.sport,
+    league: s.league,
+    name: s.season ? `${s.season} ${s.name}` : s.name,
+    season: s.season,
+    startsAt: s.updatedAt,
+    status: 'standings',
+    standings: s.standings,
+    afterEvent: s.afterEvent,
+    next: s.next,
+    updatedAt: s.updatedAt,
+  }
+}
+
+/** "Sao Paulo GP FP1, Fri, Nov 6, 10:30 AM" */
+export function formatNext(next: {name: string; startsAt?: string}) {
+  const d = next.startsAt ? new Date(next.startsAt) : undefined
+  const when =
+    d && !Number.isNaN(d.getTime())
+      ? d.toLocaleString(undefined, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : undefined
+  return [next.name, when].filter(Boolean).join(' \u00b7 ')
 }
 
 export function isLeaderboardSnapshot(v: unknown): v is LeaderboardSnapshot {
@@ -91,17 +134,46 @@ export function isHighlighted(entrant: Entrant, highlight: string[]) {
   return highlight.some(h => h.toLowerCase() === name)
 }
 
+export type Row = {
+  entrant: Entrant
+  /** Place as shown in the row. */
+  position: string
+  /** A driver listed under their constructor, drawn indented. */
+  member: boolean
+}
+
+function toRow(standings: Entrant[], e: Entrant): Row {
+  return {
+    entrant: e,
+    position: getPositionLabel(e, Math.max(standings.indexOf(e), 0)),
+    member: false,
+  }
+}
+
 /**
  * The three rows the card has room for: the top three, or the top two plus
- * the first highlighted entrant when they are further down.
+ * the first highlighted entrant when they are further down. A highlighted
+ * constructor with members fills the card with itself and two drivers.
  */
-export function pickRows(standings: Entrant[], highlight: string[]) {
-  const top = standings.slice(0, 3)
-  if (!highlight.length || top.some(e => isHighlighted(e, highlight))) {
-    return top
+export function pickRows(standings: Entrant[], highlight: string[]): Row[] {
+  const pinned = highlight.length
+    ? standings.find(e => isHighlighted(e, highlight))
+    : undefined
+  if (pinned?.members?.length) {
+    return [
+      toRow(standings, pinned),
+      ...pinned.members.slice(0, 2).map(m => ({
+        entrant: m,
+        position: m.positionLabel ?? (m.position ? String(m.position) : ''),
+        member: true,
+      })),
+    ]
   }
-  const pinned = standings.find(e => isHighlighted(e, highlight))
-  return pinned ? [...standings.slice(0, 2), pinned] : top
+  const top = standings.slice(0, 3)
+  if (pinned && !top.includes(pinned)) {
+    return [...standings.slice(0, 2), pinned].map(e => toRow(standings, e))
+  }
+  return top.map(e => toRow(standings, e))
 }
 
 export function formatToPar(n: number) {
@@ -166,23 +238,29 @@ export function getLeaderboardAltText(
     `${[board.league, board.season, board.name].filter(Boolean).join(', ')}.`,
   )
   const status =
-    board.status === 'final'
-      ? 'Final'
-      : board.status === 'scheduled'
-        ? 'Not started'
-        : board.status === 'suspended'
-          ? 'Suspended'
-          : board.status === 'postponed'
-            ? 'Postponed'
-            : board.status === 'canceled'
-              ? 'Canceled'
-              : 'Live'
+    board.status === 'standings'
+      ? board.afterEvent
+        ? `Standings after ${board.afterEvent}`
+        : 'Season standings'
+      : board.status === 'final'
+        ? 'Final'
+        : board.status === 'scheduled'
+          ? 'Not started'
+          : board.status === 'suspended'
+            ? 'Suspended'
+            : board.status === 'postponed'
+              ? 'Postponed'
+              : board.status === 'canceled'
+                ? 'Canceled'
+                : 'Live'
   const progress = getProgressLabel(board.progress)
   out.push(`${[status, progress].filter(Boolean).join(', ')}.`)
   const rows = pickRows(board.standings, highlight)
-  rows.forEach((e, i) => {
+  rows.forEach(({entrant: e, position, member}) => {
     const bits = [
-      `${getPositionLabel(e, board.standings.indexOf(e) >= 0 ? board.standings.indexOf(e) : i)}: ${e.name}`,
+      member
+        ? `Driver ${e.name}${position ? `, P${position}` : ''}`
+        : `${position}: ${e.name}`,
       e.team,
       getEntrantScore(e),
       getEntrantDetail(e),
@@ -190,6 +268,15 @@ export function getLeaderboardAltText(
     out.push(`${bits.join(', ')}.`)
   })
   if (board.venue) out.push(`${board.venue}.`)
-  out.push(board.isSnapshot ? 'Standings when posted.' : 'Live standings.')
+  out.push(
+    board.isSnapshot
+      ? 'Standings when posted.'
+      : board.status === 'standings'
+        ? 'Current standings.'
+        : 'Live standings.',
+  )
+  if (board.next) {
+    out.push(`Next update: ${formatNext(board.next)}.`)
+  }
   return out.join(' ')
 }

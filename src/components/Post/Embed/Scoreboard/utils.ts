@@ -12,6 +12,7 @@ import {
   type Period,
   SCOREBOARD_FIELD,
   type Snapshot,
+  STANDINGS_COLLECTION,
 } from './types'
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -75,7 +76,8 @@ export function getScoreboardAttachment(
     }
   }
   if (
-    collection === LEADERBOARD_COLLECTION &&
+    (collection === LEADERBOARD_COLLECTION ||
+      collection === STANDINGS_COLLECTION) &&
     isLeaderboardSnapshot(attachment.snapshot)
   ) {
     const highlight = Array.isArray(attachment.highlight)
