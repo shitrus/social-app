@@ -2,12 +2,13 @@ import {AtUri} from '@atproto/syntax'
 
 import {
   type Attachment,
-  ATTACHMENT_FIELD,
   type Competitor,
   type Game,
   GAME_COLLECTION,
   type GameView,
+  LEGACY_ATTACHMENT_FIELD,
   type Period,
+  SCOREBOARD_FIELD,
   type Snapshot,
 } from './types'
 
@@ -32,6 +33,18 @@ function isSnapshot(v: unknown): v is Snapshot {
   )
 }
 
+/** Emoji marking which team has the ball, by sport. */
+export function getPossessionEmoji(sport: string) {
+  switch (sport) {
+    case 'basketball':
+      return '\u{1F3C0}'
+    case 'football':
+      return '\u{1F3C8}'
+    default:
+      return undefined
+  }
+}
+
 /**
  * Reads the scoreboard attachment off a post record, if it has a usable one.
  * Posts carry it as an extra top-level field next to a normal link card.
@@ -40,7 +53,7 @@ export function getScoreboardAttachment(
   record: unknown,
 ): Attachment | undefined {
   if (!isObject(record)) return
-  const attachment = record[ATTACHMENT_FIELD]
+  const attachment = record[SCOREBOARD_FIELD] ?? record[LEGACY_ATTACHMENT_FIELD]
   if (!isObject(attachment) || typeof attachment.game !== 'string') return
   if (!isSnapshot(attachment.snapshot)) return
   try {

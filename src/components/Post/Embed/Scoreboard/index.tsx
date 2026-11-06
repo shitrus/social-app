@@ -19,6 +19,7 @@ import {
   getAltText,
   getLogoUri,
   getPeriodLabel,
+  getPossessionEmoji,
   getRoundLabel,
   getSituationLabel,
   getTeamColor,
@@ -258,6 +259,7 @@ function TeamRow({
   const other: Competitor = game[side === 'home' ? 'away' : 'home']
   const logo = getLogoUri(team, repo)
   const color = getTeamColor(team) ?? t.palette.contrast_300
+  const ball = getPossessionEmoji(game.sport)
   const hasBall =
     isInProgress(game.status) && game.situation?.possession === side
   const lost = game.status === 'final' && team.score < other.score
@@ -304,7 +306,7 @@ function TeamRow({
             {team.record}
           </Text>
         ) : null}
-        {hasBall && <Text style={[a.text_xs]}>{'\u{1F3C8}'}</Text>}
+        {hasBall && ball && <Text style={[a.text_xs]}>{ball}</Text>}
       </View>
       {showScore && (
         <Text

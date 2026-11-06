@@ -44,6 +44,17 @@ describe('getScoreboardAttachment', () => {
     expect(a?.game).toBe(GAME_URI)
   })
 
+  it('reads the new field name, preferring it over the old one', () => {
+    const a = getScoreboardAttachment({
+      'com.professorbutts.sports.scoreboard': {
+        game: GAME_URI,
+        snapshot: {...snapshot, homeScore: 1},
+      },
+      'com.professorbutts.sports.attachment': {game: GAME_URI, snapshot},
+    })
+    expect(a?.snapshot.homeScore).toBe(1)
+  })
+
   it('ignores posts without one', () => {
     expect(getScoreboardAttachment({text: 'hi'})).toBeUndefined()
   })

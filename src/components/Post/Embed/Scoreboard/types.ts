@@ -3,11 +3,15 @@
  * lexicons are not part of `#/lexicons`, so records arrive as unknown JSON and
  * are checked by the guards in `./utils`.
  *
- * Lexicons: com.professorbutts.sports.game, com.professorbutts.sports.attachment
+ * Lexicons: com.professorbutts.sports.game, com.professorbutts.sports.defs,
+ * com.professorbutts.sports.scoreboard (formerly .attachment)
  */
 
 export const GAME_COLLECTION = 'com.professorbutts.sports.game'
-export const ATTACHMENT_FIELD = 'com.professorbutts.sports.attachment'
+/** Post field that carries the scoreboard. */
+export const SCOREBOARD_FIELD = 'com.professorbutts.sports.scoreboard'
+/** Older name for the same field, still on posts made before the rename. */
+export const LEGACY_ATTACHMENT_FIELD = 'com.professorbutts.sports.attachment'
 
 export type GameStatus =
   | 'scheduled'
@@ -40,7 +44,31 @@ export type BaseballSituation = {
   onThird?: boolean
 }
 
-export type Situation = FootballSituation & BaseballSituation
+export type BasketballSituation = {
+  possession?: 'home' | 'away' | (string & {})
+  homeTimeouts?: number
+  awayTimeouts?: number
+  homeFouls?: number
+  awayFouls?: number
+  bonus?: 'home' | 'away' | 'both' | (string & {})
+}
+
+export type HockeySituation = {
+  powerPlay?: 'home' | 'away' | (string & {})
+  homeSkaters?: number
+  awaySkaters?: number
+  emptyNet?: 'home' | 'away' | 'both' | (string & {})
+}
+
+/**
+ * A union member of com.professorbutts.sports.defs#situation. Older records
+ * have no `$type` and mix football and baseball fields, so every field is
+ * optional and readers look at the fields themselves.
+ */
+export type Situation = {$type?: string} & FootballSituation &
+  BaseballSituation &
+  Omit<BasketballSituation, 'possession'> &
+  HockeySituation
 
 export type BlobRef = {
   ref?: {$link?: string}
