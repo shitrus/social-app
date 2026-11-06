@@ -202,6 +202,16 @@ function periodName(p?: {label?: string; number?: number}): string {
   return label || (p.number ? `period ${p.number}` : '')
 }
 
+export function formatGameDate(startsAt: string) {
+  const d = new Date(startsAt)
+  if (Number.isNaN(d.getTime())) return
+  return d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 export function formatKickoff(startsAt: string) {
   const d = new Date(startsAt)
   if (Number.isNaN(d.getTime())) return

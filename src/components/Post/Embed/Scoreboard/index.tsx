@@ -14,6 +14,7 @@ import {type Attachment, type Competitor, type GameView} from './types'
 import {useGameQuery} from './useGameQuery'
 import {
   applySnapshot,
+  formatGameDate,
   formatKickoff,
   getAltText,
   getLogoUri,
@@ -27,6 +28,10 @@ import {
 } from './utils'
 
 export {getScoreboardAttachment} from './utils'
+
+const FOOTER_HEIGHT = 44
+/** Matches the drawn card (body plus footer) so loading doesn't shift the feed. */
+const CARD_HEIGHT = 153 + FOOTER_HEIGHT
 
 /**
  * Live scoreboard for posts that carry a com.professorbutts.sports.attachment.
@@ -63,7 +68,7 @@ export function ScoreboardEmbed({
           a.border,
           t.atoms.border_contrast_low,
           t.atoms.bg_contrast_25,
-          {height: 156},
+          {height: CARD_HEIGHT},
           style,
         ]}
         accessibilityLabel={attachment.alt}
@@ -116,21 +121,25 @@ export function ScoreboardEmbed({
           </View>
         )}
       </Link>
-      {changed && (
-        <View
-          style={[
-            a.flex_row,
-            a.align_center,
-            a.justify_between,
-            a.gap_sm,
-            a.px_md,
-            a.py_sm,
-            a.border_t,
-            t.atoms.border_contrast_low,
-          ]}>
-          <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>
-            {view.isSnapshot ? l`Score when posted` : l`Live score`}
-          </Text>
+      {/*
+       * The footer is always drawn, with or without the toggle, so every card
+       * is the same height whatever the sport or game state.
+       */}
+      <View
+        style={[
+          a.flex_row,
+          a.align_center,
+          a.justify_between,
+          a.gap_sm,
+          a.px_md,
+          a.border_t,
+          t.atoms.border_contrast_low,
+          {height: FOOTER_HEIGHT},
+        ]}>
+        <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>
+          {view.isSnapshot ? l`Score when posted` : l`Live score`}
+        </Text>
+        {changed && (
           <Button
             label={
               view.isSnapshot
@@ -148,8 +157,8 @@ export function ScoreboardEmbed({
               {view.isSnapshot ? l`Show live` : l`Show when posted`}
             </ButtonText>
           </Button>
-        </View>
-      )}
+        )}
+      </View>
     </View>
   )
 }
@@ -256,7 +265,7 @@ function TeamRow({
 
   return (
     <View
-      style={[a.flex_row, a.align_center, a.gap_sm]}
+      style={[a.flex_row, a.align_center, a.gap_sm, {height: 36}]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants">
       <View
@@ -314,16 +323,26 @@ function TeamRow({
 
 function StatusLine({game}: {game: GameView}) {
   const t = useTheme()
-  const parts =
-    isInProgress(game.status) && game.status !== 'halftime'
-      ? [getPeriodLabel(game.period), game.clock, getSituationLabel(game)]
-      : [game.status === 'scheduled' ? game.venue : undefined]
-  const text = parts.filter(Boolean).join(' · ')
-  if (!text) return null
+  const {t: l} = useLingui()
+  let parts: (string | undefined)[]
+  if (game.status === 'live') {
+    parts = [getPeriodLabel(game.period), game.clock, getSituationLabel(game)]
+  } else if (game.status === 'halftime') {
+    parts = [l`Halftime`]
+  } else if (game.status === 'final') {
+    parts = [formatGameDate(game.startsAt), game.venue]
+  } else {
+    parts = [game.venue]
+  }
+  /*
+   * Always drawn, with a blank line when there's nothing to say, so the card
+   * keeps one fixed height.
+   */
+  const text = parts.filter(Boolean).join(' \u00b7 ') || '\u00a0'
   return (
     <Text
       numberOfLines={1}
-      style={[a.text_xs, t.atoms.text_contrast_medium]}
+      style={[a.text_xs, a.leading_snug, t.atoms.text_contrast_medium]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants">
       {text}
