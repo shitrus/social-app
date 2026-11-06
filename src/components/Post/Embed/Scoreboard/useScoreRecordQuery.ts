@@ -4,8 +4,17 @@ import {useQuery} from '@tanstack/react-query'
 
 import {STALE} from '#/state/queries'
 import {createQueryKey} from '#/state/queries/util'
-import {type Game} from './types'
+import {getLeaderboardRefreshInterval, isLeaderboard} from './leaderboard'
+import {
+  type Game,
+  GAME_COLLECTION,
+  type Leaderboard,
+  LEADERBOARD_COLLECTION,
+} from './types'
 import {getRefreshInterval, isGame} from './utils'
+
+export type ScoreRecord =
+  {kind: 'game'; value: Game} | {kind: 'leaderboard'; value: Leaderboard}
 
 const useRepoPdsQueryKeyRoot = 'scoreboard-repo-pds'
 const useGameQueryKeyRoot = 'scoreboard-game'
@@ -43,17 +52,17 @@ function useRepoPdsQuery(did: string | undefined) {
 }
 
 /**
- * Latest state of a com.professorbutts.sports.game record, polled while the
- * game is live or about to start.
+ * Latest state of a com.professorbutts.sports.game or .leaderboard record,
+ * polled while the event is live or about to start.
  */
-export function useGameQuery(gameUri: string | undefined) {
+export function useScoreRecordQuery(gameUri: string | undefined) {
   const uri = gameUri ? new AtUri(gameUri) : undefined
   const did = uri?.host
   const {data: pds, error: pdsError} = useRepoPdsQuery(did)
 
   const query = useQuery({
     queryKey: createQueryKey(useGameQueryKeyRoot, {uri: gameUri}),
-    queryFn: async ({signal}): Promise<Game> => {
+    queryFn: async ({signal}): Promise<ScoreRecord> => {
       const params = new URLSearchParams({
         repo: uri!.host,
         collection: uri!.collection,
@@ -65,12 +74,26 @@ export function useGameQuery(gameUri: string | undefined) {
       )
       if (!res.ok) throw new Error(`getRecord failed: ${res.status}`)
       const body = (await res.json()) as {value?: unknown}
-      if (!isGame(body.value)) throw new Error('Not a game record')
-      return body.value
+      if (uri!.collection === GAME_COLLECTION && isGame(body.value)) {
+        return {kind: 'game', value: body.value}
+      }
+      if (
+        uri!.collection === LEADERBOARD_COLLECTION &&
+        isLeaderboard(body.value)
+      ) {
+        return {kind: 'leaderboard', value: body.value}
+      }
+      throw new Error('Not a scoreboard record')
     },
     enabled: !!uri && !!pds,
     staleTime: STALE.SECONDS.FIFTEEN,
-    refetchInterval: q => getRefreshInterval(q.state.data),
+    refetchInterval: q => {
+      const rec = q.state.data
+      if (!rec) return false
+      return rec.kind === 'game'
+        ? getRefreshInterval(rec.value)
+        : getLeaderboardRefreshInterval(rec.value)
+    },
     retry: 1,
   })
 

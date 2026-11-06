@@ -8,6 +8,7 @@
  */
 
 export const GAME_COLLECTION = 'com.professorbutts.sports.game'
+export const LEADERBOARD_COLLECTION = 'com.professorbutts.sports.leaderboard'
 /** Post field that carries the scoreboard. */
 export const SCOREBOARD_FIELD = 'com.professorbutts.sports.scoreboard'
 /** Older name for the same field, still on posts made before the rename. */
@@ -115,12 +116,90 @@ export type Snapshot = {
   situation?: Situation
 }
 
-export type Attachment = {
+/** Post field pointing at a two-sided game. */
+export type GameAttachment = {
+  kind: 'game'
   /** at:// URI of the game record. Always resolves to the latest state. */
   game: string
   snapshot: Snapshot
   /** Full description of the scoreboard at the snapshot moment. */
   alt?: string
+}
+
+/** Post field pointing at a leaderboard event (golf, motorsport). */
+export type LeaderboardAttachment = {
+  kind: 'leaderboard'
+  /** at:// URI of the leaderboard record. */
+  game: string
+  snapshot: LeaderboardSnapshot
+  /** Entrant names the post is about. */
+  highlight: string[]
+  alt?: string
+}
+
+export type Attachment = GameAttachment | LeaderboardAttachment
+
+export type Entrant = {
+  name: string
+  position?: number
+  positionLabel?: string
+  shortName?: string
+  team?: string
+  number?: string
+  country?: string
+  color?: string
+  score?: string
+  toPar?: number
+  today?: string
+  thru?: string
+  laps?: number
+  lapsLed?: number
+  detail?: string
+  rounds?: number[]
+  state?: string
+  profile?: string
+  photoUrl?: string
+}
+
+/** A union member of com.professorbutts.sports.defs#progress. */
+export type Progress = {
+  $type?: string
+  /** Golf */
+  round?: number
+  totalRounds?: number
+  cutLine?: string
+  playoff?: boolean
+  /** Motorsport */
+  lap?: number
+  totalLaps?: number
+  stage?: number
+  session?: string
+  flag?: string
+}
+
+export type Leaderboard = {
+  sport: string
+  league: string
+  name: string
+  season?: string
+  venue?: string
+  startsAt: string
+  endsAt?: string
+  status: GameStatus | 'suspended'
+  progress?: Progress
+  standings: Entrant[]
+  updatedAt: string
+}
+
+export type LeaderboardSnapshot = {
+  capturedAt: string
+  status: string
+  standings: Entrant[]
+  progress?: Progress
+}
+
+export type LeaderboardView = Leaderboard & {
+  isSnapshot: boolean
 }
 
 /**

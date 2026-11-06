@@ -52,7 +52,7 @@ describe('getScoreboardAttachment', () => {
       },
       'com.professorbutts.sports.attachment': {game: GAME_URI, snapshot},
     })
-    expect(a?.snapshot.homeScore).toBe(1)
+    expect(a?.kind === 'game' && a.snapshot.homeScore).toBe(1)
   })
 
   it('ignores posts without one', () => {

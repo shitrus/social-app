@@ -1,11 +1,13 @@
 import {AtUri} from '@atproto/syntax'
 
+import {isLeaderboardSnapshot} from './leaderboard'
 import {
   type Attachment,
   type Competitor,
   type Game,
   GAME_COLLECTION,
   type GameView,
+  LEADERBOARD_COLLECTION,
   LEGACY_ATTACHMENT_FIELD,
   type Period,
   SCOREBOARD_FIELD,
@@ -55,18 +57,37 @@ export function getScoreboardAttachment(
   if (!isObject(record)) return
   const attachment = record[SCOREBOARD_FIELD] ?? record[LEGACY_ATTACHMENT_FIELD]
   if (!isObject(attachment) || typeof attachment.game !== 'string') return
-  if (!isSnapshot(attachment.snapshot)) return
+  let collection: string
   try {
     const uri = new AtUri(attachment.game)
-    if (uri.collection !== GAME_COLLECTION || !uri.rkey) return
-    if (!uri.host.startsWith('did:')) return
+    if (!uri.rkey || !uri.host.startsWith('did:')) return
+    collection = uri.collection
   } catch {
     return
   }
-  return {
-    game: attachment.game,
-    snapshot: attachment.snapshot,
-    alt: typeof attachment.alt === 'string' ? attachment.alt : undefined,
+  const alt = typeof attachment.alt === 'string' ? attachment.alt : undefined
+  if (collection === GAME_COLLECTION && isSnapshot(attachment.snapshot)) {
+    return {
+      kind: 'game',
+      game: attachment.game,
+      snapshot: attachment.snapshot,
+      alt,
+    }
+  }
+  if (
+    collection === LEADERBOARD_COLLECTION &&
+    isLeaderboardSnapshot(attachment.snapshot)
+  ) {
+    const highlight = Array.isArray(attachment.highlight)
+      ? attachment.highlight.filter((h): h is string => typeof h === 'string')
+      : []
+    return {
+      kind: 'leaderboard',
+      game: attachment.game,
+      snapshot: attachment.snapshot,
+      highlight,
+      alt,
+    }
   }
 }
 

@@ -10,8 +10,19 @@ import {Eye_Stroke2_Corner0_Rounded as EyeIcon} from '#/components/icons/Eye'
 import {Link} from '#/components/Link'
 import {Text} from '#/components/Typography'
 import {type app} from '#/lexicons'
-import {type Attachment, type Competitor, type GameView} from './types'
-import {useGameQuery} from './useGameQuery'
+import {
+  applyLeaderboardSnapshot,
+  getLeaderboardAltText,
+  hasLeaderboardChanged,
+} from './leaderboard'
+import {LeaderboardBody} from './LeaderboardBody'
+import {
+  type Attachment,
+  type Competitor,
+  type GameView,
+  type LeaderboardView,
+} from './types'
+import {useScoreRecordQuery} from './useScoreRecordQuery'
 import {
   applySnapshot,
   formatGameDate,
@@ -35,10 +46,11 @@ const FOOTER_HEIGHT = 44
 const CARD_HEIGHT = 153 + FOOTER_HEIGHT
 
 /**
- * Live scoreboard for posts that carry a com.professorbutts.sports.attachment.
- * Shows the score from when the post was made first, so readers see what the
- * poster was reacting to, and reveals the live score on tap. Renders
- * `fallback` (the normal link card) if the game record can't be loaded.
+ * Live scoreboard for posts that carry a com.professorbutts.sports.scoreboard
+ * field. Draws a two-sided game or a leaderboard (golf, motorsport). Shows the
+ * state from when the post was made first, so readers see what the poster was
+ * reacting to, and reveals the live state on tap. Renders `fallback` (the
+ * normal link card) if the record can't be loaded.
  */
 export function ScoreboardEmbed({
   attachment,
@@ -55,12 +67,11 @@ export function ScoreboardEmbed({
 }) {
   const t = useTheme()
   const {t: l} = useLingui()
-  const haptics = useHaptics()
   const [showLive, setShowLive] = useState(false)
-  const {data: game, isError, pds, did} = useGameQuery(attachment.game)
+  const {data: rec, isError, pds, did} = useScoreRecordQuery(attachment.game)
 
-  if (isError && !game) return <>{fallback}</>
-  if (!game || !did) {
+  if (isError && !rec) return <>{fallback}</>
+  if (!rec || !did || rec.kind !== attachment.kind) {
     return (
       <View
         style={[
@@ -78,14 +89,83 @@ export function ScoreboardEmbed({
     )
   }
 
-  const changed = hasChangedSinceSnapshot(game, attachment.snapshot)
-  const view: GameView =
-    showLive || !changed
-      ? {...game, isSnapshot: false}
-      : applySnapshot(game, attachment.snapshot)
-  const alt = getAltText(view)
-  const repo = {did, pds}
+  let changed: boolean
+  let isSnapshot: boolean
+  let alt: string
+  let body: React.ReactNode
+  if (rec.kind === 'game' && attachment.kind === 'game') {
+    const game = rec.value
+    changed = hasChangedSinceSnapshot(game, attachment.snapshot)
+    const view: GameView =
+      showLive || !changed
+        ? {...game, isSnapshot: false}
+        : applySnapshot(game, attachment.snapshot)
+    const repo = {did, pds}
+    isSnapshot = view.isSnapshot
+    alt = getAltText(view)
+    body = (
+      <>
+        <Header game={view} />
+        <TeamRow game={view} side="away" repo={repo} />
+        <TeamRow game={view} side="home" repo={repo} />
+        <StatusLine game={view} />
+      </>
+    )
+  } else if (rec.kind === 'leaderboard' && attachment.kind === 'leaderboard') {
+    const board = rec.value
+    changed = hasLeaderboardChanged(board, attachment.snapshot)
+    const view: LeaderboardView =
+      showLive || !changed
+        ? {...board, isSnapshot: false}
+        : applyLeaderboardSnapshot(board, attachment.snapshot)
+    isSnapshot = view.isSnapshot
+    alt = getLeaderboardAltText(view, attachment.highlight)
+    body = <LeaderboardBody board={view} highlight={attachment.highlight} />
+  } else {
+    return <>{fallback}</>
+  }
 
+  return (
+    <CardFrame
+      link={link}
+      alt={alt}
+      changed={changed}
+      isSnapshot={isSnapshot}
+      onToggle={() => setShowLive(v => !v)}
+      onOpen={onOpen}
+      style={style}>
+      {body}
+    </CardFrame>
+  )
+}
+
+/**
+ * Border, whole-card link and footer shared by every card type. The footer
+ * is always drawn, with or without the toggle, so every card is the same
+ * height whatever the sport or state.
+ */
+function CardFrame({
+  link,
+  alt,
+  changed,
+  isSnapshot,
+  onToggle,
+  onOpen,
+  style,
+  children,
+}: {
+  link: app.bsky.embed.external.ViewExternal
+  alt: string
+  changed: boolean
+  isSnapshot: boolean
+  onToggle: () => void
+  onOpen?: () => void
+  style?: StyleProp<ViewStyle>
+  children: React.ReactNode
+}) {
+  const t = useTheme()
+  const {t: l} = useLingui()
+  const haptics = useHaptics()
   return (
     <View
       style={[
@@ -115,17 +195,10 @@ export function ScoreboardEmbed({
                 ? t.atoms.bg_contrast_25
                 : t.atoms.bg,
             ]}>
-            <Header game={view} />
-            <TeamRow game={view} side="away" repo={repo} />
-            <TeamRow game={view} side="home" repo={repo} />
-            <StatusLine game={view} />
+            {children}
           </View>
         )}
       </Link>
-      {/*
-       * The footer is always drawn, with or without the toggle, so every card
-       * is the same height whatever the sport or game state.
-       */}
       <View
         style={[
           a.flex_row,
@@ -138,12 +211,12 @@ export function ScoreboardEmbed({
           {height: FOOTER_HEIGHT},
         ]}>
         <Text style={[a.text_xs, t.atoms.text_contrast_medium]}>
-          {view.isSnapshot ? l`Score when posted` : l`Live score`}
+          {isSnapshot ? l`Score when posted` : l`Live score`}
         </Text>
         {changed && (
           <Button
             label={
-              view.isSnapshot
+              isSnapshot
                 ? l`Show the live score`
                 : l`Show the score when this was posted`
             }
@@ -151,11 +224,11 @@ export function ScoreboardEmbed({
             color="secondary"
             onPress={() => {
               haptics.tap()
-              setShowLive(v => !v)
+              onToggle()
             }}>
-            {view.isSnapshot && <ButtonIcon icon={EyeIcon} />}
+            {isSnapshot && <ButtonIcon icon={EyeIcon} />}
             <ButtonText>
-              {view.isSnapshot ? l`Show live` : l`Show when posted`}
+              {isSnapshot ? l`Show live` : l`Show when posted`}
             </ButtonText>
           </Button>
         )}
