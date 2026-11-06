@@ -32,6 +32,10 @@ import {PostAlerts} from '#/components/moderation/PostAlerts'
 import * as ReportDialogMetadataContext from '#/components/moderation/ReportDialog/ReportDialogMetadataContext'
 import {AtCard} from '#/components/Post/Embed/AtCard'
 import {getAtCardProvider} from '#/components/Post/Embed/AtCard/providers'
+import {
+  getScoreboardAttachment,
+  ScoreboardEmbed,
+} from '#/components/Post/Embed/Scoreboard'
 import {StandardSiteEmbed} from '#/components/Post/Embed/StandardSiteEmbed'
 import {isStandardSiteEmbed} from '#/components/Post/Embed/StandardSiteEmbed/utils'
 import {RichText} from '#/components/RichText'
@@ -119,6 +123,29 @@ function MediaEmbed({
             Card={atProvider ? AtCard : StandardSiteEmbed}
             {...rest}
           />
+        )
+      }
+      const scoreboard = getScoreboardAttachment(rest.post?.record)
+      if (scoreboard) {
+        return (
+          <ContentHider
+            modui={rest.moderation?.ui('contentMedia')}
+            activeStyle={[a.mt_sm]}>
+            <ScoreboardEmbed
+              attachment={scoreboard}
+              link={embed.view.external}
+              onOpen={rest.onOpen}
+              style={[a.mt_sm, rest.style]}
+              fallback={
+                <ExternalEmbed
+                  link={embed.view.external}
+                  onOpen={rest.onOpen}
+                  post={rest.post}
+                  style={[a.mt_sm, rest.style]}
+                />
+              }
+            />
+          </ContentHider>
         )
       }
       const chatInviteCode = getChatInviteCodeFromUrl(embed.view.external.uri)
