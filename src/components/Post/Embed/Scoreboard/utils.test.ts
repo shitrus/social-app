@@ -7,6 +7,7 @@ import {
   getLogoUri,
   getRefreshInterval,
   getScoreboardAttachment,
+  getSituationLabel,
   hasChangedSinceSnapshot,
 } from './utils'
 
@@ -113,6 +114,33 @@ describe('getAltText', () => {
     expect(getAltText({...game, status: 'final', isSnapshot: true})).toContain(
       'Final. Bengals 17, Steelers 14. Score when posted.',
     )
+  })
+})
+
+describe('baseball and hockey situations', () => {
+  it('labels the count, outs and runners', () => {
+    expect(
+      getSituationLabel({
+        ...game,
+        sport: 'baseball',
+        situation: {
+          balls: 2,
+          strikes: 1,
+          outs: 1,
+          onFirst: true,
+          onThird: true,
+        },
+      }),
+    ).toBe('2-1, 1 out, on 1st & 3rd')
+  })
+  it('labels a power play and empty net', () => {
+    expect(
+      getSituationLabel({
+        ...game,
+        sport: 'hockey',
+        situation: {powerPlay: 'home', emptyNet: 'away'},
+      }),
+    ).toBe('Power play PIT, CIN empty net')
   })
 })
 

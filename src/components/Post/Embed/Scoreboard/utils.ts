@@ -215,9 +215,36 @@ export function getSituationLabel(game: Game) {
       .join(' ')
   }
   if (s.outs != null || s.balls != null) {
+    const bases = [s.onFirst && '1st', s.onSecond && '2nd', s.onThird && '3rd']
+      .filter(Boolean)
+      .join(' & ')
     return [
       s.balls != null && `${s.balls}-${s.strikes ?? 0}`,
       s.outs != null && `${s.outs} out${s.outs === 1 ? '' : 's'}`,
+      bases && `on ${bases}`,
+    ]
+      .filter(Boolean)
+      .join(', ')
+  }
+  const side = (v?: string) =>
+    v === 'home' ? game.home : v === 'away' ? game.away : undefined
+  const pp = side(s.powerPlay)
+  const en = s.emptyNet === 'both' ? 'Both nets empty' : side(s.emptyNet)
+  if (s.homeRedCards || s.awayRedCards || s.stoppageTime) {
+    const reds = (t: Competitor, n?: number) =>
+      n ? `${teamShortName(t)} ${'\u{1F7E5}'.repeat(Math.min(n, 3))}` : ''
+    return [
+      s.stoppageTime && `+${s.stoppageTime.replace(/^\+/, '')}`,
+      reds(game.home, s.homeRedCards),
+      reds(game.away, s.awayRedCards),
+    ]
+      .filter(Boolean)
+      .join(', ')
+  }
+  if (pp || en) {
+    return [
+      pp && `Power play ${teamShortName(pp)}`,
+      typeof en === 'string' ? en : en && `${teamShortName(en)} empty net`,
     ]
       .filter(Boolean)
       .join(', ')
@@ -347,6 +374,19 @@ export function getAltText(game: GameView) {
             .join(', ') + '.',
         )
       }
+      const pick = (v?: string) =>
+        v === 'home' ? game.home : v === 'away' ? game.away : undefined
+      const pp = pick(s.powerPlay)
+      if (pp) out.push(`${teamName(pp)} on the power play.`)
+      const en = pick(s.emptyNet)
+      if (en) out.push(`${teamName(en)} have pulled their goalie.`)
+      if (s.homeRedCards || s.awayRedCards) {
+        out.push(
+          `Red cards: ${teamName(game.home)} ${s.homeRedCards ?? 0}, ${teamName(game.away)} ${s.awayRedCards ?? 0}.`,
+        )
+      }
+      if (s.stoppageTime)
+        out.push(`${s.stoppageTime} minutes of stoppage time.`)
     }
   }
   if (game.venue) out.push(`${game.venue}.`)

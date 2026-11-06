@@ -61,6 +61,13 @@ export type HockeySituation = {
   emptyNet?: 'home' | 'away' | 'both' | (string & {})
 }
 
+export type SoccerSituation = {
+  /** Announced added time, e.g. '3'. */
+  stoppageTime?: string
+  homeRedCards?: number
+  awayRedCards?: number
+}
+
 /**
  * A union member of com.professorbutts.sports.defs#situation. Older records
  * have no `$type` and mix football and baseball fields, so every field is
@@ -69,7 +76,8 @@ export type HockeySituation = {
 export type Situation = {$type?: string} & FootballSituation &
   BaseballSituation &
   Omit<BasketballSituation, 'possession'> &
-  HockeySituation
+  HockeySituation &
+  SoccerSituation
 
 export type BlobRef = {
   ref?: {$link?: string}
